@@ -1,16 +1,18 @@
 #!env python
 
 """Chat server for CST311 Programming Assignment 3"""
-__author__ = "[team name here]"
+__author__ = "Team 5"
 __credits__ = [
-  "Your",
-  "Names",
-  "Here"
+        "Meagan Eggert",
+        "Maria Imperatrice",
+        "Brandon Hoppens",
+        "Ryan Matsuo"
 ]
 
 
 import socket as s
 import time
+import threading
 
 # Configure logging
 import logging
@@ -62,9 +64,13 @@ def main():
     while True:
       # When a client connects, create a new socket and record their address
       connection_socket, address = server_socket.accept()
+      # Meg - Start a new thread
+      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, address))
+      client_thread.start()
       log.info("Connected to client at " + str(address))
+      
       # Pass the new socket and address off to a connection handler function
-      connection_handler(connection_socket, address)
+      # connection_handler(connection_socket, address)
   finally:
     server_socket.close()
 
