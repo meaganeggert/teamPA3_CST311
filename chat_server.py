@@ -22,26 +22,50 @@ log.setLevel(logging.DEBUG)
 
 server_port = 12000
 
+clients = {}
+
+
 def connection_handler(connection_socket, address):
   # Read data from the new connectio socket
   #  Note: if no data has been sent this blocks until there is data
-  query = connection_socket.recv(1024)
+
+  # Meg - For Extra Credit
+  # Receive chosen username
+  # username_encoded = connection_socket.recv(1024)
+
+  # Decode Username
+  # username = username_encoded.decode()
   
-  # Decode data from UTF-8 bytestream
-  query_decoded = query.decode()
+  # Meg - Keep track of connected clients
+  # clients[username] = connection_socket
   
   # Log query information
-  log.info("Received query test \"" + str(query_decoded) + "\"")
+  # log.info("Received query test \"" + str(username) + "\"")
   
   # Perform some server operations on data to generate response
-  time.sleep(10)
-  response = query_decoded.upper()
+  # time.sleep(5)
+  # response = "Your username is: " + username.upper()
   
   # Sent response over the network, encoding to UTF-8
-  connection_socket.send(response.encode())
+  # connection_socket.send(response.encode())
   
-  # Close client socket
-  connection_socket.close()
+    while True:
+        message_encoded = connection_socket.recv(1024)
+        if not message_encoded:
+            break
+        message = message_encoded.decode()
+        log.info("Received query test \"" + str(message) + "\"")
+        time.sleep(5)
+        response = message.upper()
+        connection_socket.send(response.encode())
+        
+
+    # Close client socket
+    # print(clients)
+    # del clients[connection_socket]
+    connection_socket.close()
+    # print(clients)
+
   
 
 def main():
@@ -64,6 +88,7 @@ def main():
     while True:
       # When a client connects, create a new socket and record their address
       connection_socket, address = server_socket.accept()
+
       # Meg - Start a new thread
       client_thread = threading.Thread(target=connection_handler, args=(connection_socket, address))
       client_thread.start()
@@ -73,6 +98,7 @@ def main():
       # connection_handler(connection_socket, address)
   finally:
     server_socket.close()
+
 
 if __name__ == "__main__":
   main()
