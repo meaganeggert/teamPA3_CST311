@@ -46,14 +46,13 @@ def main():
     message = "hello"
     while message != "bye":
 
-        message = input('Input Message: ')
         if message.lower() == "bye": 
             break
         # Wrap in a try-finally to ensure the socket is properly closed regardless of errors
         try:
             # Set data across socket to server
             #  Note: encode() converts the string to UTF-8 for transmission
-            client_socket.send(message.encode())
+            # client_socket.send(message.encode())
 
             # Read response from server
             server_response = client_socket.recv(1024)
@@ -63,9 +62,21 @@ def main():
             # Print output from server
             print('From Server:')
             print(server_response_decoded)
+            
+
         except:
             print("Something went wrong\n")
+        
+        message = input('Input Message: ')
+        # Set data across socket to server
+        # Note: encode() converts the string to UTF-8 for transmission
 
+        try:
+            client_socket.send(message.encode())
+        except:
+            print("Error sending message\n")
+
+    
     # Close socket
     client_socket.close()
 
