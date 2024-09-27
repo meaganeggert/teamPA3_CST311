@@ -11,6 +11,9 @@ __credits__ = [
 # Import statements
 import socket as s
 
+import sys
+import select
+
 # Configure logging
 import logging
 logging.basicConfig()
@@ -21,13 +24,21 @@ log.setLevel(logging.DEBUG)
 server_name = '10.0.0.1'
 server_port = 12000
 
+inputs = []
+outputs = []
+
 def main():
     # Create socket
     client_socket = s.socket(s.AF_INET, s.SOCK_STREAM)
+    
 
     try:
         # Establish TCP connection
-      client_socket.connect((server_name,server_port))
+        client_socket.connect((server_name,server_port))
+        
+        # Meg - Add server_socket to both the list of potential inputs and potential outputs
+        inputs.append(client_socket)
+        outputs.append(client_socket)
     except Exception as e:
         log.exception(e)
         log.error("***Advice:***")
@@ -39,44 +50,32 @@ def main():
             log.error("\tNo specific advice, please contact teaching staff and include text of error and code.")
         exit(8)
 
-  # Meg - For extra credit portion
-  # Get input from user
-  # user_input = input('Input Username:')
+    # Meg - Receive Client welcome message from server
+    data = client_socket.recv(1024)
+    welcome_message = data.decode()
+    print(welcome_message)
 
-    message = "hello"
-    while message != "bye":
-
-        if message.lower() == "bye": 
-            break
-        # Wrap in a try-finally to ensure the socket is properly closed regardless of errors
+    while True:
         try:
-            # Set data across socket to server
-            #  Note: encode() converts the string to UTF-8 for transmission
-            # client_socket.send(message.encode())
-
-            # Read response from server
-            server_response = client_socket.recv(1024)
-            # Decode server response from UTF-8 bytestream
-            server_response_decoded = server_response.decode()
-
-            # Print output from server
-            print('From Server:')
-            print(server_response_decoded)
-            
-
-        except:
-            print("Something went wrong\n")
-        
-        message = input('Input Message: ')
-        # Set data across socket to server
-        # Note: encode() converts the string to UTF-8 for transmission
-
-        try:
-            client_socket.send(message.encode())
-        except:
-            print("Error sending message\n")
-
+            input_ready, output_ready, err = select.select([sys.stdin, client_socket], [client_socket], [])
     
+            for i in input_ready:
+                if i == client_socket:
+                    data = client_socket.recv(1024)
+                    message = data.decode()
+                    print(message)
+
+                elif i == sys.stdin:
+                    message = input()
+                    try:
+                        client_socket.send(message.encode())
+                    except:
+                        print("Error sending message")
+                    if message.lower() == "bye":
+                        break 
+        except select.error as e:
+            print("Error:", e)
+
     # Close socket
     client_socket.close()
 

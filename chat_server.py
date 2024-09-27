@@ -13,6 +13,8 @@ __credits__ = [
 import socket as s
 import time
 import threading
+import select
+import sys
 
 # Configure logging
 import logging
@@ -25,74 +27,90 @@ server_port = 12000
 clients = []
 connected_clients = {}
 
+inputs = []
+outputs = []
+
+
 
 def connection_handler(connection_socket, address):
-    
 
-    # Read data from the new connectio socket
-  #  Note: if no data has been sent this blocks until there is data
-
-  # Meg - For Extra Credit
-  # Receive chosen username
-  # username_encoded = connection_socket.recv(1024)
-
-  # Decode Username
-  # username = username_encoded.decode()
-  
-  # Meg - Keep track of connected clients
-  # clients[username] = connection_socket
-  
-  # Log query information
-  # log.info("Received query test \"" + str(username) + "\"")
-  
-  # Perform some server operations on data to generate response
-  # time.sleep(5)
-  # response = "Your username is: " + username.upper()
-  
-  # Sent response over the network, encoding to UTF-8
-  # connection_socket.send(response.encode())
-  
-    
     message = "You are connected to the server. "
     if connection_socket == connected_clients["Client X"]:
-        message = message + "Welcome, Client X!"
+        message = message + "Welcome, Client X! Type a message and press 'enter' to send."
         connected_clients["Client X"].send(message.encode())
     else:
         if len(connected_clients) > 1:
-            message = message + "Welcome, Client Y!" 
+            message = message + "Welcome, Client Y! Type a message and press 'enter' to send."
             connected_clients["Client Y"].send(message.encode())
  
-    while True:
-
-
-        message_encoded = connection_socket.recv(1024)
-        if not message_encoded:
+    server_active = True
+    while server_active:
+        try:
+            input_ready, output_ready, err = select.select(inputs, outputs, [])
+        except:
+            print("Meagan broke something in the server code")
             break
-        message = message_encoded.decode()
-        log.info("Received query test \"" + str(message) + "\"")
-        time.sleep(2)
-        response = message.lower()
-        # connection_socket.send(response.encode())
 
-        
+        # Meg - For each "ready" possible input, i.e. Client X or Client Y
+        for input in input_ready:
+            try:
+                # If there's a message, receive it
+                message_encoded = connection_socket.recv(1024)
+                if not message_encoded:
+                    break
+                message = message_encoded.decode()
+                response = message.lower()
+                # If the message is 'bye'
+                if response == "bye":
+                    # Exit message received from Client X
+                    if (connection_socket == connected_clients["Client X"]):
+                        response = "Client X has left the chat"
+                        print(response)
+                        # Tell Client Y that Client X left
+                        connected_clients["Client Y"].send(response.encode())
+                        server_active = False # boolean to close outer loop
+                    # Exit message received from Client Y
+                    if (connection_socket == connected_clients["Client Y"]):
+                        response = "Client Y has left the chat"
+                        print(response)
+                        # Tell Client X that Client Y left
+                        connected_clients["Client X"].send(response.encode())
+                        server_active = False # boolean to close outer loop
 
 
-        # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
-        # ***address is the client_counter in main***
-        # Meg - Adjusted to use usernames
-        if connection_socket == connected_clients["Client X"]:
-            response = "Client X: " + response;
-            connected_clients["Client Y"].send(response.encode())
-        else:
-            response = "Client Y: " + response;
-            connected_clients["Client X"].send(response.encode())
-        
+                # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
+                # ***address is the client_counter in main***
+                # Meg - Adjusted to use usernames
+                else:
+                    log.info("Received query test \"" + str(message) + "\"")
+#                   time.sleep(2)
+                    # Message received from Client X
+                    if connection_socket == connected_clients["Client X"]:
+                        response = "Client X: " + response;
+                        # Send message to Client Y
+                        connected_clients["Client Y"].send(response.encode())
+                    # Message received from Client Y
+                    else:
+                        response = "Client Y: " + response;
+                        # Send message to Client X
+                        connected_clients["Client X"].send(response.encode())
+            except:
+                print("There is an error")
+            
+            # If a client exited, break the loop
+            if server_active == False:
+                break
+        if server_active == False:
+            break
 
     # Close client socket
-    del connected_clients[connection_socket]
+    if connection_socket == connected_clients["Client X"]:
+        del connected_clients["Client X"]
+    if connection_socket == connected_clients["Client Y"]:
+        del connected_clients["Client Y"]
     connection_socket.close()
-    for key, value in connected_clients.items():
-        print(key, value)
+    # for key, value in connected_clients.items():
+        # print(key, value)
   
 
 def main():
@@ -125,8 +143,10 @@ def main():
       else:
           connected_clients["Client Y"] = connection_socket
 
-      for key, value in connected_clients.items():
-          print(key, value)
+      inputs.append(connection_socket)
+      outputs.append(connection_socket)
+      # for key, value in connected_clients.items():
+          # print(key, value)
 
 
       # Meg - Start a new thread
@@ -138,10 +158,7 @@ def main():
       # Brandon - temporary way to identify sockets to use for forwarding messages
       clients.insert(client_counter, connection_socket)
       client_counter +=1
-      
 
-      # Pass the new socket and address off to a connection handler function
-      # connection_handler(connection_socket, address)
   finally:
     server_socket.close()
 
