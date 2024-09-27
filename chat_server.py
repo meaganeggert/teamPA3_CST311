@@ -22,7 +22,7 @@ log.setLevel(logging.DEBUG)
 
 server_port = 12000
 
-clients = {}
+clients = []
 
 
 def connection_handler(connection_socket, address):
@@ -57,7 +57,14 @@ def connection_handler(connection_socket, address):
         log.info("Received query test \"" + str(message) + "\"")
         time.sleep(5)
         response = message.upper()
-        connection_socket.send(response.encode())
+        # connection_socket.send(response.encode())
+
+        # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
+        # ***address is the client_counter in main***
+        if address == 0:
+           clients[1].send(response.encode())
+        else:
+           clients[0].send(response.encode())
         
 
     # Close client socket
@@ -81,6 +88,9 @@ def main():
   
   # Alert user we are now online
   log.info("The server is ready to receive on port " + str(server_port))
+
+  # Brandon - Temporary counter used to identify sockets via the clients array.
+  client_counter = 0
   
   # Surround with a try-finally to ensure we clean up the socket after we're done
   try:
@@ -90,9 +100,14 @@ def main():
       connection_socket, address = server_socket.accept()
 
       # Meg - Start a new thread
-      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, address))
+      # Brandon - made temporary change to second args (originally "address")
+      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, client_counter))
       client_thread.start()
       log.info("Connected to client at " + str(address))
+
+      # Brandon - temporary way to identify sockets to use for forwarding messages
+      clients.insert(client_counter, connection_socket)
+      client_counter +=1
       
       # Pass the new socket and address off to a connection handler function
       # connection_handler(connection_socket, address)
