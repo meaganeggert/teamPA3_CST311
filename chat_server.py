@@ -24,7 +24,7 @@ log.setLevel(logging.DEBUG)
 
 server_port = 12000
 
-clients = []
+client_used = {}
 connected_clients = {}
 
 inputs = []
@@ -69,6 +69,7 @@ def connection_handler(connection_socket, address):
                         # Tell Client Y that Client X left
                         connected_clients["Client Y"].send(response.encode())
                         server_active = False # boolean to close outer loop
+                        client_used[0] = False # boolean to indicate Client X is free
                     # Exit message received from Client Y
                     if (connection_socket == connected_clients["Client Y"]):
                         response = "Client Y has left the chat"
@@ -76,10 +77,10 @@ def connection_handler(connection_socket, address):
                         # Tell Client X that Client Y left
                         connected_clients["Client X"].send(response.encode())
                         server_active = False # boolean to close outer loop
+                        client_used[1] = False # boolean to indicate Client Y is free
 
 
                 # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
-                # ***address is the client_counter in main***
                 # Meg - Adjusted to use usernames
                 else:
                     log.info("Received query test \"" + str(message) + "\"")
@@ -104,14 +105,25 @@ def connection_handler(connection_socket, address):
             break
 
     # Close client socket
-    if connection_socket == connected_clients["Client X"]:
-        del connected_clients["Client X"]
-    if connection_socket == connected_clients["Client Y"]:
-        del connected_clients["Client Y"]
+    # Only remove socket from connected_clients if connected_clients contains a socket and we want it to be removed
+    if connected_clients.get("Client X") != None and client_used[0] == False:
+        # Remove if connection is from Client X
+        if connection_socket == connected_clients["Client X"]:
+            del connected_clients["Client X"]
+            inputs.remove(connection_socket)
+            outputs.remove(connection_socket)
+    
+    if connected_clients.get("Client Y") != None and client_used[1] == False:
+        # Remove if connection is from Client Y
+        if connection_socket == connected_clients["Client Y"]:
+            del connected_clients["Client Y"]
+            inputs.remove(connection_socket)
+            outputs.remove(connection_socket)
+    
     connection_socket.close()
     # for key, value in connected_clients.items():
         # print(key, value)
-  
+
 
 def main():
   # Create a TCP socket
@@ -127,8 +139,9 @@ def main():
   # Alert user we are now online
   log.info("The server is ready to receive on port " + str(server_port))
 
-  # Brandon - Temporary counter used to identify sockets via the clients array.
-  client_counter = 0
+  # Brandon - Initiate client_used to be used with update_socket and connection_handler.
+  client_used[0] = False # Client X
+  client_used[1] = False # Client Y
   
   # Surround with a try-finally to ensure we clean up the socket after we're done
   try:
@@ -138,10 +151,17 @@ def main():
       connection_socket, address = server_socket.accept()
 
       # Meg - Keep track of connected_clients with username:
-      if len(connected_clients) == 0:
-          connected_clients["Client X"] = connection_socket
-      else:
-          connected_clients["Client Y"] = connection_socket
+      # Brandon - updates based on client_used dictionary
+    #   if len(connected_clients) == 0:
+    #       connected_clients["Client X"] = connection_socket
+    #   else:
+    #       connected_clients["Client Y"] = connection_socket
+      if client_used.get(0) == False:
+        client_used[0] = True
+        connected_clients["Client X"] = connection_socket
+      elif client_used.get(1) == False:
+        client_used[1] = True
+        connected_clients["Client Y"] = connection_socket
 
       inputs.append(connection_socket)
       outputs.append(connection_socket)
@@ -151,13 +171,9 @@ def main():
 
       # Meg - Start a new thread
       # Brandon - made temporary change to second args (originally "address")
-      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, client_counter))
+      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, address))
       client_thread.start()
       log.info("Connected to client at " + str(address))
-
-      # Brandon - temporary way to identify sockets to use for forwarding messages
-      clients.insert(client_counter, connection_socket)
-      client_counter +=1
 
   finally:
     server_socket.close()

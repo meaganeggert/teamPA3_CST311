@@ -1,11 +1,12 @@
 #!env python
 
 """Chat client for CST311 Programming Assignment 3"""
-__author__ = "[team name here]"
+__author__ = "Team 5"
 __credits__ = [
-        "Your",
-        "Names",
-        "Here"
+        "Meagan Eggert",
+        "Maria Imperatrice",
+        "Brandon Hoppens",
+        "Ryan Matsuo"
         ]
 
 # Import statements
@@ -55,7 +56,12 @@ def main():
     welcome_message = data.decode()
     print(welcome_message)
 
+    # Brandon - message outside while loop to allow for break on "bye",
+    # otherwise we break on for loop, then restart due to while loop
+    message = ""
     while True:
+        if message == "bye":
+            break
         try:
             input_ready, output_ready, err = select.select([sys.stdin, client_socket], [client_socket], [])
     
