@@ -30,20 +30,26 @@ connected_clients = {}
 inputs = []
 outputs = []
 
-
+offline_messages = []
 
 def connection_handler(connection_socket, address):
 
-    message = "You are connected to the server. "
-    if connection_socket == connected_clients["Client X"]:
-        message = message + "Welcome, Client X! Type a message and press 'enter' to send."
-        connected_clients["Client X"].send(message.encode())
-    else:
-        if len(connected_clients) > 1:
-            message = message + "Welcome, Client Y! Type a message and press 'enter' to send."
-            connected_clients["Client Y"].send(message.encode())
- 
+    # Maria - Username specification and offline messages
+    # Initial prompt, stores connection with username
+    connection_socket.send("Welcome to the chat! Please enter your username: ".encode())
+    username = connection_socket.recv(1024).decode().strip()
+    connected_clients[username] = connection_socket
+
+    # Sends offline message to connected user and formats
+    for i, msg in enumerate(offline_messages):
+        connection_socket.send(msg.encode())
+        if i < len(offline_messages) - 1:
+            connection_socket.send("\n".encode())
+
+    offline_messages.clear()
+
     server_active = True
+
     while server_active:
         try:
             input_ready, output_ready, err = select.select(inputs, outputs, [])
@@ -60,40 +66,27 @@ def connection_handler(connection_socket, address):
                     break
                 message = message_encoded.decode()
                 response = message.lower()
-                # If the message is 'bye'
+                # Maria - If the message is 'bye' - for username
                 if response == "bye":
-                    # Exit message received from Client X
-                    if (connection_socket == connected_clients["Client X"]):
-                        response = "Client X has left the chat"
-                        print(response)
-                        # Tell Client Y that Client X left
-                        connected_clients["Client Y"].send(response.encode())
-                        server_active = False # boolean to close outer loop
-                    # Exit message received from Client Y
-                    if (connection_socket == connected_clients["Client Y"]):
-                        response = "Client Y has left the chat"
-                        print(response)
-                        # Tell Client X that Client Y left
-                        connected_clients["Client X"].send(response.encode())
-                        server_active = False # boolean to close outer loop
-
+                    exit_message = username + " has left the chat."
+                    for user, sock in connected_clients.items():
+                        if sock != connection_socket:
+                            sock.send(exit_message.encode())
+                    server_active = False
 
                 # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
                 # ***address is the client_counter in main***
-                # Meg - Adjusted to use usernames
+                # Maria - Adjusted for usernames
                 else:
-                    log.info("Received query test \"" + str(message) + "\"")
-#                   time.sleep(2)
-                    # Message received from Client X
-                    if connection_socket == connected_clients["Client X"]:
-                        response = "Client X: " + response;
-                        # Send message to Client Y
-                        connected_clients["Client Y"].send(response.encode())
-                    # Message received from Client Y
-                    else:
-                        response = "Client Y: " + response;
-                        # Send message to Client X
-                        connected_clients["Client X"].send(response.encode())
+                    full_message = username + ": " + message
+                    # Send message to other user
+                    for user, sock in connected_clients.items():
+                        if sock != connection_socket:
+                            sock.send(full_message.encode())
+                    # If the other user is not connected, store the message
+                        if len(connected_clients) < 2:
+                            offline_messages.append(full_message)
+                                
             except:
                 print("There is an error")
             
@@ -103,11 +96,12 @@ def connection_handler(connection_socket, address):
         if server_active == False:
             break
 
-    # Close client socket
-    if connection_socket == connected_clients["Client X"]:
-        del connected_clients["Client X"]
-    if connection_socket == connected_clients["Client Y"]:
-        del connected_clients["Client Y"]
+    if not server_active:
+        if username in connected_clients and connected_clients[username] == connection_socket:
+            del connected_clients[username]
+            inputs.remove(connection_socket)
+            outputs.remove(connection_socket)
+
     connection_socket.close()
     # for key, value in connected_clients.items():
         # print(key, value)
@@ -137,12 +131,6 @@ def main():
       # When a client connects, create a new socket and record their address
       connection_socket, address = server_socket.accept()
 
-      # Meg - Keep track of connected_clients with username:
-      if len(connected_clients) == 0:
-          connected_clients["Client X"] = connection_socket
-      else:
-          connected_clients["Client Y"] = connection_socket
-
       inputs.append(connection_socket)
       outputs.append(connection_socket)
       # for key, value in connected_clients.items():
@@ -155,9 +143,6 @@ def main():
       client_thread.start()
       log.info("Connected to client at " + str(address))
 
-      # Brandon - temporary way to identify sockets to use for forwarding messages
-      clients.insert(client_counter, connection_socket)
-      client_counter +=1
 
   finally:
     server_socket.close()
