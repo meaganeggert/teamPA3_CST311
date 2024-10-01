@@ -11,10 +11,8 @@ __credits__ = [
 
 
 import socket as s
-import time
 import threading
 import select
-import sys
 
 # Configure logging
 import logging
@@ -24,7 +22,6 @@ log.setLevel(logging.DEBUG)
 
 server_port = 12000
 
-clients = []
 connected_clients = {}
 
 inputs = []
@@ -74,8 +71,7 @@ def connection_handler(connection_socket, address):
                             sock.send(exit_message.encode())
                     server_active = False
 
-                # Brandon - send message to other client (this version only works with hard coded numbers (two clients))
-                # ***address is the client_counter in main***
+                # Brandon - send message to other client
                 # Maria - Adjusted for usernames
                 else:
                     full_message = username + ": " + message
@@ -120,9 +116,6 @@ def main():
   
   # Alert user we are now online
   log.info("The server is ready to receive on port " + str(server_port))
-
-  # Brandon - Temporary counter used to identify sockets via the clients array.
-  client_counter = 0
   
   # Surround with a try-finally to ensure we clean up the socket after we're done
   try:
@@ -138,8 +131,7 @@ def main():
 
 
       # Meg - Start a new thread
-      # Brandon - made temporary change to second args (originally "address")
-      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, client_counter))
+      client_thread = threading.Thread(target=connection_handler, args=(connection_socket, address))
       client_thread.start()
       log.info("Connected to client at " + str(address))
 

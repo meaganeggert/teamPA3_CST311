@@ -1,11 +1,12 @@
 #!env python
 
 """Chat client for CST311 Programming Assignment 3"""
-__author__ = "[team name here]"
+__author__ = "Team 5"
 __credits__ = [
-        "Your",
-        "Names",
-        "Here"
+        "Meagan Eggert",
+        "Maria Imperatrice",
+        "Brandon Hoppens",
+        "Ryan Matsuo"
         ]
 
 # Import statements
@@ -54,27 +55,33 @@ def main():
     data = client_socket.recv(1024)
     welcome_message = data.decode()
     print(welcome_message)
+    message = ""
 
     while True:
+        if message.lower() == "bye": # Breaks out of the while loop
+            break
         try:
             input_ready, output_ready, err = select.select([sys.stdin, client_socket], [client_socket], [])
     
             for i in input_ready:
+                # Listen to incoming messages
                 if i == client_socket:
                     data = client_socket.recv(1024)
                     message = data.decode()
                     print(message)
 
+                # Send message to server
                 elif i == sys.stdin:
                     message = input()
                     try:
                         client_socket.send(message.encode())
                     except:
                         print("Error sending message")
-                    if message.lower() == "bye":
+                    if message.lower() == "bye": # Breaks out of the for loop
                         break 
         except select.error as e:
             print("Error:", e)
+        
 
     # Close socket
     client_socket.close()
@@ -82,3 +89,8 @@ def main():
 # This helps shield code from running when we import the module
 if __name__ == "__main__":
     main()
+
+
+# python3 chat_server.py
+# python3 chat_client.py
+# sudo -E mn --topo linear,3
